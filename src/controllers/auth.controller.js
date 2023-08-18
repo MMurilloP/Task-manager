@@ -1,20 +1,33 @@
 import User from "../models/user.model.js";
+import bcrypt from "bcryptjs";
+import { createAccessToken } from "../libs/jwt.js";
 
 export const register = async (req, res) => {
-  const { email, password, username } = req.body; 
+  const { email, password, username } = req.body;
 
   try {
+    const passwordHash = await bcrypt.hash(password, 10); //hasea la password
+
     const newUser = new User({
       username,
       email,
-      password,
+      password: passwordHash,
     });
 
-    await newUser.save(); // guarda el usuario newUser
-    res.send("registrando..."); 
-    
+    const userSaved = await newUser.save(); // guarda el usuario en la db
+    const token = await createAccessToken({ id: userSaved._id });
+
+    res.cookie("token", token); // creo la cookie
+    // que queremos que nos devuelva, para poder usarlo en el front end. No neceistamos el password.
+    res.json({
+      id: userSaved._id,
+      username: userSaved.username,
+      email: userSaved.email,
+      createdAt: userSaved.createdAt,
+      updaeAt: userSaved.updatedAt,
+    });
   } catch (error) {
-    console.log(error);
+    res.status(500).json({ message: error.message });
   }
 };
 
